@@ -61,9 +61,9 @@ def get_status():
             f"echo '{response}' | jq '.result.connectedPeers'", shell=True
         ).decode("utf-8").strip()
 
-        total = subprocess.check_output("df --output=size / | tail -1", shell=True).decode().strip()
-        used = subprocess.check_output("df --output=used / | tail -1", shell=True).decode().strip()
-        avail = subprocess.check_output("df --output=avail / | tail -1", shell=True).decode().strip()
+        total = subprocess.check_output("df --output=size / | tail -1", shell=True).decode().strip().split()[0]
+        used = subprocess.check_output("df --output=used / | tail -1", shell=True).decode().strip().split()[0]
+        avail = subprocess.check_output("df --output=avail / | tail -1", shell=True).decode().strip().split()[0]
 
         total_gb = int(total) // 1024 // 1024
         used_gb = int(used) // 1024 // 1024
@@ -106,6 +106,5 @@ if __name__ == "__main__":
     asyncio.run(main_loop())
 EOF
 
-echo "Starting your Telegram bot..."
+echo "✅ All set! Starting your Telegram bot now..."
 python3 "$SCRIPT_PATH"
-
