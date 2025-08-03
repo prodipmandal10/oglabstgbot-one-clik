@@ -47,15 +47,20 @@ bot = Bot(token=BOT_TOKEN)
 
 def get_status():
     try:
-        # নতুন ব্লক স্ট্যাটাস আনছে
-        block_output = subprocess.check_output(
-            "bash <(curl -s https://raw.githubusercontent.com/HustleAirdrops/0G-Storage-Node/main/logs.sh)",
-            shell=True
+        response = subprocess.check_output([
+            "curl", "-s", "-X", "POST", "http://localhost:5678",
+            "-H", "Content-Type: application/json",
+            "-d", '{"jsonrpc":"2.0","method":"zgs_getStatus","params":[],"id":1}'
+        ]).decode("utf-8")
+
+        logSyncHeight = subprocess.check_output(
+            f"echo '{response}' | jq '.result.logSyncHeight'", shell=True
         ).decode("utf-8").strip()
 
-        time.sleep(5)
+        connectedPeers = subprocess.check_output(
+            f"echo '{response}' | jq '.result.connectedPeers'", shell=True
+        ).decode("utf-8").strip()
 
-        # VPS স্টোরেজ ইনফো
         total = subprocess.check_output("df --output=size / | tail -1", shell=True).decode().strip()
         used = subprocess.check_output("df --output=used / | tail -1", shell=True).decode().strip()
         avail = subprocess.check_output("df --output=avail / | tail -1", shell=True).decode().strip()
@@ -64,24 +69,25 @@ def get_status():
         used_gb = int(used) // 1024 // 1024
         avail_gb = int(avail) // 1024 // 1024
 
-        return block_output, used_gb, avail_gb, total_gb
+        return logSyncHeight, connectedPeers, used_gb, avail_gb, total_gb
 
     except Exception as e:
-        return f"❌ Error: {str(e)}", 0, 0, 0
+        return None, f"❌ Error: {str(e)}", 0, 0, 0
 
 async def send_status():
-    block_output, used, avail, total = get_status()
+    logSyncHeight, connectedPeers, used, avail, total = get_status()
 
-    if block_output.startswith("❌"):
-        message = f"🧱 *[{BOT_NAME}]* Status Error\\n{block_output}"
+    if logSyncHeight is None:
+        message = f"🧱 *[{BOT_NAME}]* Status Fetch Error\\n{connectedPeers}"
     else:
         message = (
             f"📡 *{BOT_NAME} Node Status*\\n\\n"
-            f"{block_output}\\n\\n"
+            f"🔸 `logSyncHeight:` {logSyncHeight}\\n"
+            f"🔸 `connectedPeers:` {connectedPeers}\\n\\n"
             f"💽 *VPS Storage Info:*\\n"
-            f"▪️ Used: \`{used} GB\`\\n"
-            f"▪️ Available: \`{avail} GB\`\\n"
-            f"▪️ Total: \`{total} GB\`\\n\\n"
+            f"▪️ Used: `{used} GB`\\n"
+            f"▪️ Available: `{avail} GB`\\n"
+            f"▪️ Total: `{total} GB`\\n\\n"
             f"🕒 Update: {time.strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
@@ -94,7 +100,7 @@ async def send_status():
 async def main_loop():
     while True:
         await send_status()
-        await asyncio.sleep(600)  # 10 মিনিট পর আবার পাঠাবে
+        await asyncio.sleep(600)
 
 if __name__ == "__main__":
     asyncio.run(main_loop())
@@ -102,3 +108,4 @@ EOF
 
 echo "Starting your Telegram bot..."
 python3 "$SCRIPT_PATH"
+
